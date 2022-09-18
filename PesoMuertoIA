@@ -1,0 +1,722 @@
+#Código desarrollado por Daniel Bervel Morales
+##############################################
+
+#Este código corresponde con la aplicación "PesoMuertoIA".
+#Una aplicación capaz de corregir la técnica mientras se realiza
+#el ejercicio conocido como "peso muerto". También contará las repeticiones.
+
+###############
+## LIBRERIAS ##
+###############
+import os
+import math
+from playsound import playsound
+import cv2
+import mediapipe as mp
+from tkinter import *    # Carga módulo tk (widgets estándar)
+from tkinter import ttk  # Carga ttk (para widgets nuevos 8.5+)
+from tkinter.ttk import *
+import tkinter as tk
+import tkinter.font as tkFont
+from PIL import Image, ImageTk
+from pygame import mixer
+
+############
+## Código ##
+############
+
+os.system("cls")    #se borra la consola
+global x            #Definición constante X. Estas variables corresponden con las dimensiones de la ventana gráfica donde se ejecuta el clasificador de poses.
+global y            #Definición constante Y
+x=700               #VALOR constante X
+y=700               #VALOR constante Y
+
+##########################
+## Ventana gráfica menú ##
+##########################
+
+main = tk.Tk()                                          #Se crea la ventana
+main.title('PesoMuertoIA')                              #Título de la ventana
+
+main.geometry('900x700')                                #Anchura x altura
+main.resizable(width=False, height=False)               #Evitar que se desconfigure el tamaño
+main.configure(bg = 'white')                            #color de fondo = blanco
+
+mixer.init()                                            #Se incia el pygame para sonido
+mixer.music.load('media/sonidos/bienvenida.mp3')        #Se carga sonido bienvenida
+mixer.music.play()                                      #Se ejecuta el sonido cargado
+
+imagen = PhotoImage(file = "media/tkinter/fondo.png")   #Se carga foto fondo en el menú de bienvenida
+background = Label(image = imagen)                      
+background.place(x = 0, y = 0)                          #Se coloca el fondo en la posición 0,0
+
+fontStyle = tkFont.Font(family='Arial Baltic', size=10) #Estilo de fuente
+
+#TEXTO
+text=""""PesoMuertoIA" fue creada con el fin de corregir la postura
+    durante el ejercicio físico conocido como "Peso Muerto". 
+ \n  Esta Inteligencia Artificial permite reconocer su postura en  
+    cada instante de su ejecución y será capaz de contar el número 
+    de repeticiones válidas que realice. 
+ \n Debe tener muy en cuenta la técnica a seguir puesto que
+   el programa solo contará las repeticiones que se ejecuten de
+  manera correcta, de esta forma el asistente le ayudará a evitar 
+ posibles lesiones y mejorará su forma física de manera segura.
+ \n Si es su primera vez con "PesoMuertoIA", pulse en 
+  "Instrucciones"  para aprender a usar la aplicación. 
+ \n En caso de tener una única cámara, pulse en "cámara por 
+    defecto". En caso de tener más de una cámara puede elegir 
+    entre ellas.
+\n \n
+ Selecione la cámara con la que desea ejecutar el programa:    """ 
+ 
+
+labelExample = tk.Label(main, text=text, font=fontStyle)    #Etiqueta texto
+labelExample.pack(side=tk.LEFT)                             #Colocar texto izquierda
+
+robot = PhotoImage(file="media/tkinter/robotnuevo.png")     #Logo principal
+lblrobot=Label(main,image=robot).place(x=450,y=150)         #Etiqueta logo para ser colocado
+
+marcaagua = PhotoImage(file="media/tkinter/marcaagua.png")  #Logo Marca de agua
+lblrobot=Label(main,image=marcaagua).place(x=0,y=662)       #Etiqueta marca con colocación
+
+
+camara= IntVar()                                            #Se define una variable de entrada para que el usuario pueda elegir entre varias cámaras en caso de tener mas de una
+
+def boton0():                                               #Se definel la función del boton "camara por defecto"
+    
+    mixer.music.stop()                                      #Se para la musica en caso de haber
+    mixer.music.load('media/sonidos/camarapordefecto.mp3')  #Se carga nuevo sonido
+    mixer.music.play()                                      #Se ejecuta nueva sonido
+    
+    camara=0                                                #Se introduce la cámara 0 (cámara por defecto)
+    camera_video = cv2.VideoCapture(camara)                 #La librería cv2 recoge información de cámara por defecto
+    # Iteración hasta que la webcam consiga información 
+    while camera_video.isOpened():
+        
+        
+        ok, frame = camera_video.read()                     # Se lee el frame
+                 
+        # Gira la cámara en caso de ser necesario.
+        frame = cv2.flip(frame, 0)                         #Efecto espejo con eje horizontal
+        #frame = cv2.flip(frame, 1)                         #Efecto espejo con eje vertical
+        
+        frame_height, frame_width, _ =  frame.shape                              # Consigue anchura y altura de la ventana.
+        frame = cv2.resize(frame, (int(frame_width * (x / frame_height)), y))    # Rediseña el tamaño de la ventana mientras se mantiene la relación de asepcto.
+        frame, landmarks = detectPose(frame, pose_video, display=False)          # Ejecuta el detector de pose.
+      
+        
+        if landmarks:                                                            # Chequea si los nodos son detectados.
+             frame, _ = classifyPose(landmarks, frame, display=False)            # Genera nodos en la ventana de Peso Muerto IA.
+        
+        if (ok==True):
+         cv2.imshow('PesoMuertoIA', frame)                                       # Muestra la ventana.
+        
+         # Espera hasta que una tecla sea pulsada
+         # Se define la tecla 'ESC'
+         k = cv2.waitKey(1) & 0xFF
+         if(k == 27):
+            
+            
+            break                                                               # Si se cumple 'ESC' sale del bucle.
+        else : break
+
+    camera_video.release()                                                      # Libera y cierra la ventana.
+    cv2.destroyAllWindows()
+
+     
+############ MISMO PROCEDIMIENTO PERO CON CAMARA 2 ########### 
+
+
+def boton1():
+    mixer.music.stop()
+    mixer.music.load('media/sonidos/camaraexterna1.mp3') 
+    mixer.music.play()
+    camara=1
+    camera_video = cv2.VideoCapture(camara)
+   
+    while camera_video.isOpened():
+        
+        ok, frame = camera_video.read()
+        
+        if not ok:
+            
+            continue
+        
+        #frame = cv2.flip(frame, 0)
+        #frame = cv2.flip(frame, 1)
+    
+        frame_height, frame_width, _ =  frame.shape
+    
+        frame = cv2.resize(frame, (int(frame_width * (x / frame_height)), y))
+        
+        frame, landmarks = detectPose(frame, pose_video, display=False)
+        
+        if landmarks:
+            
+            frame, _ = classifyPose(landmarks, frame, display=False)
+        
+        cv2.imshow('PesoMuertoIA', frame)
+        
+        k = cv2.waitKey(1) & 0xFF
+        
+        if(k == 27):
+            
+            break
+    
+    camera_video.release()
+    cv2.destroyAllWindows()
+   
+############ MISMO PROCEDIMIENTO PERO CON CAMARA 3 ########### 
+
+def boton2():
+    mixer.music.stop()
+    mixer.music.load('media/sonidos/camaraexterna2.mp3') 
+    mixer.music.play()
+    camara=2
+    camera_video = cv2.VideoCapture(camara)
+   
+    while camera_video.isOpened():
+        
+        ok, frame = camera_video.read()
+        
+        if not ok:
+            
+            continue
+        
+        #frame = cv2.flip(frame, 0)
+        #frame = cv2.flip(frame, 1)
+    
+        frame_height, frame_width, _ =  frame.shape
+    
+        frame = cv2.resize(frame, (int(frame_width * (x / frame_height)), y))
+        
+        frame, landmarks = detectPose(frame, pose_video, display=False)
+        
+        if landmarks:
+            
+            frame, _ = classifyPose(landmarks, frame, display=False)
+        
+        cv2.imshow('PesoMuertoIA', frame)
+        
+        k = cv2.waitKey(1) & 0xFF
+        
+        if(k == 27):
+            
+            break
+    
+    camera_video.release()
+    cv2.destroyAllWindows()
+
+
+############ SE EJECUTA VIDEO DE EJEMPLO ############ 
+
+def botonejemplo():
+    mixer.init() 
+
+    mixer.music.load('media/sonidos/ejemplo.mp3') 
+    
+    mixer.music.play()
+    camera_video = cv2.VideoCapture('media/testrealexplicado.mp4')
+    while (camera_video.isOpened()):
+        
+        ok, frame = camera_video.read()
+        frame = cv2.resize(frame, (400,700))
+        if (ok==True):
+         
+            cv2.imshow('PesoMuertoIA', frame)
+        
+       
+            k = cv2.waitKey(15) & 0xFF
+        
+            if(k == 27):
+            
+                break
+        else: break 
+
+    os.system("cls")    
+    camera_video.release()  
+    cv2.destroyAllWindows()     
+
+
+boton0 =ttk.Button(main,text='Cámara por defecto',command=boton0)                #Se define el boton 0 con texto y localización   
+boton0.place(x=170, y=570)  
+
+boton1 = ttk.Button(main,text='Cámara externa "1"',command=boton1)               #Se define el boton 1 con texto y localización 
+boton1.place(x=340, y=570)
+
+boton2 = ttk.Button(main,text='Cámara externa "2"',command=boton2)               #Se define el boton 2 con texto y localización 
+boton2.place(x=510, y=570)
+
+####### SE DEFINE LA NUEVA VENTANA AL PULSAR INSTRUCCIONES #######
+
+def openNewWindow(parent,img_fondo,imgn_fondo):     
+      
+    newWindow = tk.Toplevel(parent)                                              #      
+    newWindow.title()                                                            # TÍTULO
+    newWindow.geometry("900x700")                                                # Geometría
+    newWindow.resizable(width=False, height=False)                               # No dimensionable
+    newWindow.configure(background='white')                                      # Fondo = blanco
+    botont=ttk.Button(newWindow,text='Video de ejemplo',command=botonejemplo,style="mio.TButton") # boton 'video de ejemplo'
+    botont.place(x=350,y=620)                                                                     # localización
+    botont=ttk.Button(newWindow,text='Volver',command=newWindow.destroy)                          # boton volver
+    botont.place(x=700,y=630)                                                                     # localización
+
+    fondos = tk.Label(newWindow, image=img_fondo)                                # Fondo imagen
+    fondos.place(x=0, y=0)
+    fondosur = tk.Label(newWindow, image=imgn_fondo)                             # fondo imagen2
+    fondosur.place(x=100,y=590)
+
+    
+
+    text="""
+     \t \t   Es importante conocer la técnica del ejercicio antes de usar la aplicación. 
+            
+        \t \t Como habrá podido comprobar, existe un menu de Bienvenida. 
+        \t \t Cuando seleccione la camara se abrirá una segunda ventana gráfica donde se
+        \t \t ejecutará el programa.
+        
+        \t \t Se deben tener en cuenta los siguientes pasos:
+
+        \t \t 1º Colóquese de manera que la cámara detecte su cuerpo completo. \n
+        \t \t 2º Ubíquese totalmente de perfil, ocultando por completo la mitad de su cuerpo. \n
+        \t \t 3º En la esquina superior izquierda aparacerá la acción a realizar,existen dos estados: "subir" y "bajar".\n
+        \t \t 4º Realice la acción hasta escuchar el sonido correspondiente.
+        \t \t Doble pitido al bajar, un simple pitido al subir.  \n
+        \t \t 5º En la esquina inferior izquierda podrá encontrar un contador con el número de repeticiones.\n
+        \t \t 6º Para reiniciar el contador coloquese de manera frontal formando una "cruz" con ambos brazos,
+        \t \t luego subalos hasta formar una "flecha".\n
+        \t \t 7º Por último, para abandonar la aplicación haga click en la ventana gráfica de la aplicación y presione la tecla "ESC"
+        \t \t (botón del teclado en la esquina superior izquierda). \n
+        \n \t \t Es recomendable ver el video de ejemplo incluído en este apartado.
+                """
+
+    labelExample = tk.Label(newWindow, text=text, font=fontStyle)               # Etiqueta texto
+    labelExample.pack(side=tk.LEFT)                                             # Localización 
+
+    mixer.init() 
+    mixer.music.load('media/sonidos/instrucciones.mp3') 
+    mixer.music.play()
+
+img_2 = Image.open("media/tkinter/instrucciones.png")        
+img2_fondo = ImageTk.PhotoImage(img_2)  
+img_3 = Image.open("media/tkinter/abajoizquierda.png")       
+img3_fondo = ImageTk.PhotoImage(img_3)  
+
+
+#Configuración instrucciones y colores
+
+parainstruccion = tkFont.Font(family='Arial Baltic', size=15)
+s=ttk.Style()
+s.configure(
+    "mio.TButton",
+    foreground="#00BB2D",
+    font=parainstruccion,
+    padding=10,
+    background='grey',
+    anchor='n'
+
+)
+s.configure(
+    "MyButton.TButton",
+    foreground="#FF0080",
+)
+
+#poner y quitar musica
+def paramusica():
+    mixer.music.stop()
+def ponmusica():
+    mixer.init() 
+
+    mixer.music.load('media/sonidos/bienvenida.mp3') 
+    
+    mixer.music.play()   
+        
+nomusica= PhotoImage(file= r"media\tkinter\pararmusica.png")
+simusica= PhotoImage(file= r"media\tkinter\simusica.png")
+photo2= simusica.subsample(2,2)
+photo1= nomusica.subsample(2,2)
+botoninformacion = ttk.Button(main,text='Instrucciones',command=lambda:openNewWindow(main, img2_fondo,img3_fondo),style="MyButton.TButton").place(x=750,y=620)
+pararmusica = ttk.Button(main,text='Stop Music',command=paramusica,image=photo1, compound= LEFT).place(x=780,y=110)
+pararmusica = ttk.Button(main,text='Play Music',command=ponmusica,image=photo2, compound= LEFT).place(x=650,y=110)
+
+
+#------------------------------------
+#####  INICIO ESTIMADOR DE POSE #####
+#------------------------------------
+counter = 18
+stage = None
+
+# Inicializando clases mediapipe 
+mp_pose = mp.solutions.pose
+
+# Se crea la posición.
+pose = mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.3, model_complexity=2)
+
+# Inicializando la clase de mediapipe , util para anotaciones
+mp_drawing = mp.solutions.drawing_utils
+
+def detectPose(image, pose, display=True):
+    '''
+    Esta funcion funciona como detector de poses.
+    Args:
+        image: La imagen de entrada.
+        pose: la pose en cuestion .
+        display: Un valor boolean que si es verdadero la funcion desplega la imagen original, la imagen resultante, 
+                 y el la posición mapeada en 3D.
+    Returns:
+        output_image: La imagen de entrada con los nodos detectados.
+        landmarks: Una lista de nodos detectados convertidos en escala original .
+    '''
+    
+    # Crea una copia de la imagen de entrada
+    output_image = image.copy()
+    
+    # La convierte a RGB
+    imageRGB = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    
+    # Detecta la posición
+    results = pose.process(imageRGB)
+    
+    # Recupera la altura y anchura de la imagen de entrada.
+    height, width, _ = image.shape
+    
+    # Incializa una lista para almacenar los nodos .
+    landmarks = []
+    
+    # Chekea si se detectan los nodos .
+    if results.pose_landmarks:
+    
+        # Dibuja la pose de nodos en la imagen de salida. Se configura la línea
+              
+
+        mp_drawing.draw_landmarks(output_image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
+                                 mp_drawing.DrawingSpec(color=(128,0,250), thickness=2, circle_radius=3), 
+                                 mp_drawing.DrawingSpec(color=(255,255,255), thickness=2) 
+                                 ) 
+        
+        # Itera sobre los nodos.
+        for landmark in results.pose_landmarks.landmark:
+            
+            # Añade los nodos a la lista 
+            landmarks.append((int(landmark.x * width), int(landmark.y * height),
+                                  (landmark.z * width)))
+    
+    if display:
+    
+       
+        mp_drawing.plot_landmarks(results.pose_world_landmarks, mp_pose.POSE_CONNECTIONS)
+        
+    # De lo contrario
+    else:
+        
+        # Devuelve la imagen de salida en los nodos encontrados 
+        return output_image, landmarks
+
+
+
+
+
+
+
+
+# Configura la posición para el video.
+pose_video = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5, model_complexity=1)
+ 
+
+def calculateAngle(landmark1, landmark2, landmark3):
+    '''
+    Esta función calcula el angulo entre tres puntos
+    Argumentos:
+        landmark1: 
+        landmark2: 
+        landmark3: 
+    Devuelve:
+        Angulo: El calculado entre esos tres.
+ 
+    '''
+ 
+    # Consigue las coordenadas de los tres nodos.
+    x1, y1, _ = landmark1
+    x2, y2, _ = landmark2
+    x3, y3, _ = landmark3
+ 
+    # Calcula el ángulo mediante metodos trigonometricos 
+    angle = math.degrees(math.atan2(y3 - y2, x3 - x2) - math.atan2(y1 - y2, x1 - x2))
+    
+    # Si el ángulo en menos que cero 
+    if angle < 0:
+ 
+        # Añade 360 .
+        angle += 360
+    # Ángulo suplementario
+    if angle >180.0:
+        angle = 360-angle
+        
+    # Devuelve el ángulo 
+    return angle
+
+
+def classifyPose(landmarks, output_image, display=False):
+    '''
+    Esta funcion clasifica la posición dependiendo de los angulo de varios puntos.
+    Args:
+        landmarks: Una lista de los nodos detectados de la persona par ser clasificados.
+        output_image: Una imagen de la persona con los nodos detectados .
+        display: Un valor booleano que se coloca en verdaddero si funciona el detector con la posición detectada
+       
+    Devuelve:
+        output_image: La imagen con el nodo detectado y la posición 
+        label: la posición
+ 
+    '''
+
+    
+    # Calculo de los ángulos
+    #----------------------------------------------------------------------------------------------------------------
+   
+    # Obtiene el ángulo entre la cadera, la rodilla y el tobillo. 
+    left_knee_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                                      landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value],
+                                      landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value])
+    #redondea con dos 2 cifras                                 
+    left_knee_angle = round (left_knee_angle,2)                                  
+    
+
+    # Obtiene el angulo entre el codo , hombro y cadera . 
+    left_hip_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
+                                         landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                                         landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value])
+    left_hip_angle=round(left_hip_angle,2)                                     
+ 
+    # Obtiene el ángulo entre la boca, el hombro y la rodilla.
+    left_mouth_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.MOUTH_LEFT.value],
+                                          landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
+                                          landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value])
+
+    counter_to_cerol = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
+                                          landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
+                                          landmarks[mp_pose.PoseLandmark.LEFT_HIP.value])   
+
+    counter_to_ceror = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value],
+                                          landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value],
+                                          landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value])                                                                         
+
+  
+
+    #----------------------------------------------------------------------------------------------------------------
+    global counter
+
+    #Se define la situación para RESETEAR el contador 
+    if counter_to_cerol > 140 and counter_to_ceror > 140 and counter != 0:
+        counter=0
+        mixer.music.load('media/sonidos/reinicio.mp3') 
+        mixer.music.play()
+
+    #Se define el estado cambiante a bajar 
+    if left_hip_angle > 171:
+            global stage 
+            
+              
+            stage = "BAJAR"
+            
+
+        
+    #Se define el estado ARRIBA para sonido
+    if  stage == "SUBIR" and  left_hip_angle > 168 and counter > 0 :
+       playsound("media/sonidos/ABAJO.mp3",False)
+        
+            
+
+    
+        
+    # Se define la posición correcta del peso muerto
+    if left_knee_angle < 160 and left_knee_angle > 140 and left_hip_angle < 80 and left_hip_angle > 70 and stage == "BAJAR" :          
+        stage= "SUBIR"
+        
+        counter += 1 
+       
+        mixer.music.load('media/sonidos/ABAJO.mp3') 
+        mixer.music.play()
+        
+            
+       
+        
+       
+  
+    
+    #Se define ANIMACION 5 repeticiones 
+    if counter == 5 and  stage == "SUBIR" and  left_hip_angle > 168 :
+            
+     mixer.music.load('media/sonidos/cinco.mp3') 
+     mixer.music.play()
+     
+     #Se define ANIMACION 2 repeticiones 
+    if counter == 1 and  stage == "SUBIR" and  left_hip_angle > 168:
+      mixer.music.load('media/sonidos/moverse.mp3') 
+      mixer.music.play()
+     
+
+    #Se define ANIMACION 10 repeticiones 
+    if counter == 10 and  stage == "SUBIR" and  left_hip_angle > 168:
+      mixer.music.load('media/sonidos/diez.mp3') 
+      mixer.music.play()
+
+    #Se define ANIMACION 12 repeticiones  
+    if counter == 12 and  stage == "SUBIR" and  left_hip_angle > 168:
+      mixer.music.load('media/sonidos/estasenforma.mp3') 
+      mixer.music.play() 
+
+    #Se define ANIMACION 15 repeticiones   
+    if counter == 15 and  stage == "SUBIR" and  left_hip_angle > 168:
+      mixer.music.load('media/sonidos/quince.mp3') 
+      mixer.music.play()
+      
+    #Se define ANIMACION 20 repeticiones 
+    if counter == 20  and  stage == "SUBIR" and  left_hip_angle > 168:
+      mixer.music.load('media/sonidos/veinte.mp3') 
+      mixer.music.play()
+    
+    #Se define ANIMACION 25 repeticiones 
+    if counter == 25  and  stage == "SUBIR" and  left_hip_angle > 168:
+      mixer.music.load('media/sonidos/veinticinco.mp3') 
+      mixer.music.play()
+      
+    
+       
+            
+    #---------------------------------------------------------------------------------------------------------------- 
+    label = ''
+       
+    # Muestra en pantalla los ángulos  (solo para programación)
+    
+    #cv2.putText(output_image, str(left_mouth_angle),(100, 100),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA
+                                #)
+    #cv2.putText(output_image, str(left_hip_angle),(100, 100),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA
+                                #)
+
+    #cv2.putText(output_image, str(left_knee_angle),(200, 200),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA
+                                #)
+    
+
+
+    # Se dibuja el cuadrado azul para fondo de estado y repeticiones
+
+    cv2.rectangle(output_image, (0,0), (240,90), (255,255,255), -1)
+    cv2.rectangle(output_image, (0,y), (150,y-150), (255,255,255), -1)
+    #cv2.line(output_image,(120,30),(380,30),(0,0,0),2)
+
+       
+    # SE DEFINE CUADRO DE NÚMERO DE REPETICIONES
+
+    if counter == 0 :
+     cv2.putText(output_image, 'Repeticiones', (20,y-12), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA, )
+     cv2.putText(output_image, str(counter), 
+                    (50,y-50), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,0,0), 3, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (45,y-55), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,255,255), 3, cv2.LINE_AA,)
+
+    if counter == 1:
+     cv2.putText(output_image, 'Repeticion', (30,y-12), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA,)
+                    
+     cv2.putText(output_image, str(counter), 
+                    (50,y-50), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,0,0), 3, cv2.LINE_AA,)
+
+     cv2.putText(output_image, str(counter), 
+                    (45,y-55), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,204,255), 3, cv2.LINE_AA,)
+
+    if counter > 1 and counter <= 5:
+     cv2.putText(output_image, 'Repeticiones', (20,y-12), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (50,y-50), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,0,0), 3, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (45,y-55), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,204,255), 3, cv2.LINE_AA,)
+
+
+    if counter > 5 and  counter < 10:
+     cv2.putText(output_image, 'Repeticiones', (20,y-12), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (50,y-50), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,0,0), 3, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (45,y-55), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,153,255), 3, cv2.LINE_AA,)
+                    
+    if counter == 10:     
+     cv2.putText(output_image, 'Repeticiones', (20,y-12), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (18,y-50), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,0,0), 3, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (13,y-55), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,153,255), 3, cv2.LINE_AA,)         
+
+    if counter > 10 and counter <= 15:
+     cv2.putText(output_image, 'Repeticiones', (20,y-12), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (18,y-50), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,0,0), 3, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (13,y-55), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,102,255), 3, cv2.LINE_AA,)
+
+    if counter > 15 and counter <= 20:
+     cv2.putText(output_image, 'Repeticiones', (20,y-12), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (18,y-50), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,0,0), 3, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (13,y-55), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,51,255), 3, cv2.LINE_AA,)
+
+    if counter > 20:
+     cv2.putText(output_image, 'Repeticiones', (20,y-12), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (18,y-50), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,0,0), 3, cv2.LINE_AA,)
+     cv2.putText(output_image, str(counter), 
+                    (13,y-55), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 3, (0,0,255), 3, cv2.LINE_AA,)
+                    
+
+                    
+
+
+    
+
+    #SE DEFINEN LETRAS Y COLORES DE ESTADO"
+    coloraccion = (96,27,216)
+    if stage == "BAJAR":
+         coloraccion = (96,27,216)
+    if stage == "SUBIR":
+         coloraccion= (246,182,41)
+    cv2.putText(output_image, 'Estado', (90,25), 
+                    cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0,0,0), 1, cv2.LINE_AA)
+    cv2.putText(output_image, stage, 
+                    (20,80), 
+    cv2.FONT_HERSHEY_TRIPLEX, 2, coloraccion, 3, cv2.LINE_AA)
+    
+
+
+  
+       
+    return output_image, label
+
+
+os.system("cls")
+cv2.destroyAllWindows()                 #DESTRUYE VENTANAS AL SALIR DEL BUCLE
+main.mainloop()                         #CIERRA EL TKINTER
